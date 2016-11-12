@@ -1,2 +1,4 @@
 # r-shiny-diabetes
-Shiny app to predict probability of diabetes given a set of data
+Shiny app to predict probability of diabetes. Trained on Pima India Diabetes data set from https://archive.ics.uci.edu/ml/datasets/Pima+Indians+Diabetes 
+
+App hosted at https://cissyc.shinyapps.io/r-shiny-diabetes/
