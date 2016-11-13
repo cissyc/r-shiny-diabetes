@@ -3,39 +3,23 @@ library(ggplot2)
 library(stats)
 library(e1071)
 
-# get data
+# - get data
 data(PimaIndiansDiabetes)
 df_data <- PimaIndiansDiabetes
 
-# data set with 768 observations, 8 features, and 2 classes
+# - data set with 768 observations, 8 features, and 2 classes
 dim(df_data)
 
-# split into training set and test set
+# - split into training set and test set
 set.seed(3)
 sample_index <- sample(1:nrow(df_data), 0.1*nrow(df_data), FALSE)
 dt_test <- df_data[sample_index, ]
 dt_train <- df_data[-sample_index, ]
 
-# plot each feature vector
+# - plot each feature vector
 df_melted <- reshape2::melt(df_data, id.vars = "diabetes")
 
-new_data <- data.frame(
-  pregnant = 10,
-  glucose = 100,
-  pressure = 75,
-  triceps = 3,
-  insulin = 600,
-  mass = 40,
-  pedigree = 1,
-  age = 20
-)
-
-new_data <- data.frame(new_values = t(new_data))
-new_data$variable <- rownames(new_data)
-
-new_data_merged <- merge(df_melted, new_data, by.x = "variable") 
-
-ggplot(data = new_data_merged,
+ggplot(data = df_melted,
        aes(x = value,
            group = diabetes,
            colour = diabetes)) + 
@@ -53,16 +37,16 @@ with(dt_train, plot(x = glucose, y = log(mass), col = diabetes))
 
 nb_model <- e1071::naiveBayes(diabetes ~ .,data = dt_train)
 
-# back-test with training data
+# - back-test with training data
 nb_predict_train <- stats::predict(nb_model, dt_train[, 1:8])
 
-# confusion matrix to get true and false negatives
+# - confusion matrix to get true and false negatives
 table(
   model_prediction  =  nb_predict_train,
   actual_class  =  dt_train$diabetes
 )
 
-# now try test data
+# - now try test data
 nb_predict_test <- stats::predict(nb_model, dt_test[, 1:8])
 table(
   model_prediction  =  nb_predict_test,
@@ -76,7 +60,7 @@ table(
 
 pr_train <- stats::prcomp(x = dt_train[, 1:8], center = TRUE, scale = TRUE)
 
-# first 3 PCs explain 61% of variance
+# - first 3 PCs explain 61% of variance
 plot(pr_train, type = "l")
 summary(pr_train)
 
@@ -91,12 +75,12 @@ scatterplot3d(x = pr_train$x[, 1], y = pr_train$x[, 2], z = pr_train$x[, 3],
 
 logit_model <- stats::glm(diabetes ~ ., data = dt_train, family = "binomial")
 
-# predict on new data
+# - predict on new data
 logit_predict <- round(stats::predict(logit_model, newdata = dt_test[, 1:8], type = "response"), 0)
 logit_predict <- as.factor(ifelse(logit_predict == 0, "pred_neg", "pred_pos"))
 dt_logit_predict <- rbind(dt_train, data.frame(dt_test[, 1:8], diabetes = logit_predict))
 
-# plot this prediction on most statistically significant variables
+# - plot this prediction on most statistically significant variables
 ggplot(data = dt_logit_predict, 
        aes(x = glucose,
            y = log(mass),
@@ -109,7 +93,7 @@ ggplot(data = dt_logit_predict,
   scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "chartreuse4", "red1"))
 
 
-# with PCA
+# - with PCA
 pca_logit_model <- stats::glm(dt_train$diabetes ~ ., data = data.frame(pr_train$x), family = "binomial")
 
 pr_test <- stats::predict(pr_train, newdata = dt_test[, 1:8])
