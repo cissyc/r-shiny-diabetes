@@ -9,9 +9,38 @@ source("helper.R")
 
 function(input, output) {
   
-  # - summary plot comparing input attributes with the rest of data set
-  output$summary_plot <- renderPlot({
-    get_summary_output(input, type="plot")
+  # - summary plots comparing input attributes with the rest of data set
+  # - can probably put this into a function??
+  output$summary_plot_pregnant <- renderPlot({
+    get_summary_output(input, type="plot", attribute="pregnant")
+  }, bg="transparent")
+  
+  output$summary_plot_glucose <- renderPlot({
+    get_summary_output(input, type="plot", attribute="glucose")
+  }, bg="transparent")
+  
+  output$summary_plot_pressure <- renderPlot({
+    get_summary_output(input, type="plot", attribute="pressure")
+  }, bg="transparent")
+  
+  output$summary_plot_triceps <- renderPlot({
+    get_summary_output(input, type="plot", attribute="triceps")
+  }, bg="transparent")
+  
+  output$summary_plot_insulin <- renderPlot({
+    get_summary_output(input, type="plot", attribute="insulin")
+  }, bg="transparent")
+  
+  output$summary_plot_mass <- renderPlot({
+    get_summary_output(input, type="plot", attribute="mass")
+  }, bg="transparent")
+  
+  output$summary_plot_pedigree <- renderPlot({
+    get_summary_output(input, type="plot", attribute="pedigree")
+  }, bg="transparent")
+  
+  output$summary_plot_age <- renderPlot({
+    get_summary_output(input, type="plot", attribute="age")
   }, bg="transparent")
   
   # - output text showing predicted probability of diabetes given input data
@@ -28,3 +57,4 @@ function(input, output) {
     get_logit_output(input, type="plot")
   }, bg="transparent")
 }
+

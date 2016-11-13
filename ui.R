@@ -4,13 +4,23 @@
 
 library(shiny)
 library(shinydashboard)
-library(mlbench)
+
+# - source the helper file that generates plots and outputs
+source("helper.R")
 
 # - put this here so drop down knows which headers to take
 data(PimaIndiansDiabetes)
 data_headers <- colnames(PimaIndiansDiabetes)
+data_desc <-  c("Number of times pregnant",
+                "Plasma glucose concentration",
+                "Diastolic blood pressure (mm Hg)",
+                "Triceps skin fold thickness (mm)",
+                "2-Hour serum insulin (mu U/ml)",
+                "Body mass index (weight in kg/(height in m)^2)",
+                "Diabetes pedigree function",
+                "Age (years)")
 
-
+# - dashboard starts here
 dashboardPage(
   
   dashboardHeader(
@@ -26,14 +36,14 @@ dashboardPage(
       
       # - userdata input
       menuItem("Input data", icon = icon("pencil"),
-               numericInput("pregnant", "Number of times pregnant", value=0, min=0),
-               numericInput("glucose","Plasma glucose concentration", value=110, min=0),
-               numericInput("pressure", "Diastolic blood pressure (mm Hg)", value=70, min=0, max=150),
-               numericInput("triceps", "Triceps skin fold thickness (mm)", value=20, min=0),
-               numericInput("insulin", "2-Hour serum insulin (mu U/ml)", value=70, min=0),
-               numericInput("mass", "Body mass index (weight in kg/(height in m)^2)", value=30, min=0),
-               numericInput("pedigree", "Diabetes pedigree function", value=0.4, min=0),
-               numericInput("age", "Age (years)", value=30, min=0, max=120)
+               numericInput(data_headers[1], data_desc[1], value=0, min=0),
+               numericInput(data_headers[2], data_desc[2], value=110, min=0),
+               numericInput(data_headers[3], data_desc[3], value=70, min=0, max=150),
+               numericInput(data_headers[4], data_desc[4], value=20, min=0),
+               numericInput(data_headers[5], data_desc[5], value=70, min=0),
+               numericInput(data_headers[6], data_desc[6], value=30, min=0),
+               numericInput(data_headers[7], data_desc[7], value=0.4, min=0),
+               numericInput(data_headers[8], data_desc[8], value=30, min=0, max=120)
       ),
       menuItem("Comparison with population", tabName = "comparison", icon = icon("bar-chart")),
       menuItem("Diabetes likelihood", tabName = "diabetes", icon = icon("heartbeat")),
@@ -69,7 +79,22 @@ dashboardPage(
                   br(),
                   paste0("- Black line: given input attributes"),
                   hr(),
-                  plotOutput("summary_plot")
+                  
+                  # - rows of density plots here
+                  fluidRow(
+                    get_summary_plot_box(attribute = data_headers[1]),
+                    get_summary_plot_box(attribute = data_headers[2]),
+                    get_summary_plot_box(attribute = data_headers[3])
+                  ),
+                  fluidRow(
+                    get_summary_plot_box(attribute = data_headers[4]),
+                    get_summary_plot_box(attribute = data_headers[5]),
+                    get_summary_plot_box(attribute = data_headers[6])
+                  ),
+                  fluidRow(
+                    get_summary_plot_box(attribute = data_headers[7]),
+                    get_summary_plot_box(attribute = data_headers[8])
+                  )
                 )
         ), 
         
@@ -99,16 +124,17 @@ dashboardPage(
                   # - input panel at the bottom to let the user select which attributes
                   #   to compare; default glucose and mass
                   fluidRow(
-                    column(2,
+                    hr(),
+                    column(3,
                            h4("Variables to compare: ")
                     ),
-                    column(3, offset = 1,
+                    column(4, offset = 1,
                            selectInput('x_var',
                                        'X Variable',
                                        choices=data_headers,
                                        selected="glucose")
                     ),
-                    column(3,
+                    column(4,
                            selectInput('y_var',
                                        'Y Variable',
                                        choices=data_headers,
