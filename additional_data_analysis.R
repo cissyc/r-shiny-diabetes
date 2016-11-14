@@ -1,8 +1,10 @@
-library(mlbench)
-library(ggplot2)
-library(stats)
-library(e1071)
-library(scatterplot3d)
+library(mlbench)        # - for original data set
+library(ggplot2)        # - for nice plots
+library(e1071)          # - for naive bayes
+library(stats)          # - for principal component analysis and glm
+library(MASS)           # - for akaike information criterion
+library(scatterplot3d)  # - for 3d scatter plot
+library(boot)           # - for cross validation
 
 # - get data
 data(PimaIndiansDiabetes)
@@ -26,7 +28,6 @@ ggplot(data = df_melted,
            colour = diabetes)) + 
   geom_density() + 
   facet_wrap(~ variable, scales  =  "free") +
-  geom_vline(aes(xintercept = new_values)) +
   scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "black"))
 
 with(dt_train, plot(x = triceps, y = log(insulin), col = diabetes))
@@ -76,12 +77,16 @@ scatterplot3d(x = pr_train$x[, 1], y = pr_train$x[, 2], z = pr_train$x[, 3],
 
 logit_model <- stats::glm(diabetes ~ ., data = dt_train, family = "binomial")
 
+# - check leave-one-out CV
+# - 15.9% error rate
+boot::cv.glm(dt_train, logit_model)$delta
+
 # - predict on new data
-logit_predict <- round(stats::predict(logit_model, newdata = dt_test[, 1:8], type = "response"), 0)
-logit_predict <- as.factor(ifelse(logit_predict == 0, "pred_neg", "pred_pos"))
+logit_predict <- stats::predict(logit_model, newdata = dt_test[, 1:8], type = "response")
+logit_predict <- as.factor(ifelse(round(logit_predict, 0) == 0, "pred_neg", "pred_pos"))
 dt_logit_predict <- rbind(dt_train, data.frame(dt_test[, 1:8], diabetes = logit_predict))
 
-# - plot this prediction on most statistically significant variables
+# - plot this prediction on most features with lowest p values
 ggplot(data = dt_logit_predict, 
        aes(x = glucose,
            y = log(mass),
@@ -92,50 +97,40 @@ ggplot(data = dt_logit_predict,
   scale_shape_manual(values = c(1, 1, 17, 17)) +
   scale_size_manual(values = c(2, 2, 4 , 4)) +
   scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "chartreuse4", "red1"))
+
 
 # - select model using akaike information criteria
-logit_model_AIC <- MASS::stepAIC(logit_model, direction = "backward", trace = 0)
-# - only the intercept, glucose, mass, pedigree and age remain
+# - as a result only the intercept, glucose, mass, pedigree and age remain
+logit_model_aic <- MASS::stepAIC(logit_model, direction = "backward", trace = 0)
+
+# - check leave-one-out CV
+# - 15.7% error rate
+boot::cv.glm(dt_train, logit_model_aic)$delta
 
 # - predict on new data
-logit_predict_AIC <- round(stats::predict(logit_model_AIC, newdata = dt_test[, 1:8], type = "response"), 0)
-logit_predict_AIC <- as.factor(ifelse(logit_predict_AIC == 0, "pred_neg", "pred_pos"))
-dt_logit_predict_AIC <- rbind(dt_train, data.frame(dt_test[, 1:8], diabetes = logit_predict_AIC))
+logit_predict_aic <- round(stats::predict(logit_model_aic, newdata = dt_test[, 1:8], type = "response"), 0)
+logit_predict_aic <- as.factor(ifelse(logit_predict_aic == 0, "pred_neg", "pred_pos"))
 
-# - plot prediction post-AIC selection
-ggplot(data = dt_logit_predict_AIC, 
-       aes(x = glucose,
-           y = log(mass),
-           shape = diabetes,
-           size = diabetes,
-           colour = diabetes)) + 
-  geom_point() +
-  scale_shape_manual(values = c(1, 1, 17, 17)) +
-  scale_size_manual(values = c(2, 2, 4 , 4)) +
-  scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "chartreuse4", "red1"))
 
 # - feature extraction with PCA
-pca_logit_model <- stats::glm(dt_train$diabetes ~ ., data = data.frame(pr_train$x), family = "binomial")
-
-pr_test <- stats::predict(pr_train, newdata = dt_test[, 1:8])
-
-pca_logit_predict <- round(stats::predict(pca_logit_model, newdata = data.frame(pr_test), type = "response"), 0)
-pca_logit_predict <- as.factor(ifelse(pca_logit_predict == 0, "pred_neg", "pred_pos"))
-table(
-  model_prediction  =  pca_logit_predict,
-  actual_class  =  dt_test$diabetes
+# - set up data first, with PC instead of original features
+dt_train_pca <- data.frame(
+  diabetes = dt_train$diabetes,
+  pr_train$x
 )
 
-dt_logit_predict <- rbind(data.frame(pr_train$x, diabetes = dt_train$diabetes),
-                          data.frame(pr_test, diabetes = pca_logit_predict))
-ggplot(data = dt_logit_predict, 
-       aes(x = PC1,
-           y = PC2,
-           shape = diabetes,
-           colour = diabetes)) + 
-  geom_point() +
-  scale_shape_manual(values = c(1, 1, 17, 17)) +
-  scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "chartreuse4", "red1"))
+logit_model_pca <- stats::glm(diabetes ~ ., data = dt_train_pca, family = "binomial")
+
+# - check leave-one-out CV
+# - 15.9% error rate
+boot::cv.glm(dt_train_pca, logit_model_pca)$delta
+
+# - predict on new data
+# - generate principal components for test set
+pr_test <- stats::predict(pr_train, newdata = dt_test[, 1:8])
+logit_predict_pca <- round(stats::predict(logit_model_pca, newdata = data.frame(pr_test), type = "response"), 0)
+logit_predict_pca <- as.factor(ifelse(logit_predict_pca == 0, "pred_neg", "pred_pos"))
+
 
 
 
