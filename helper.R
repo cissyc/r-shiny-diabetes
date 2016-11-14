@@ -40,8 +40,9 @@ data_attribute_unit <- list(
 # - melt into required format for facet distribution plots
 df_melted <- reshape2::melt(df_data, id.vars = "diabetes")
 
-# - get logit coefficients
+# - get logit coefficients; perform model selection by minimising the akaike information criteria (AIC)
 logit_model <- stats::glm(diabetes ~ ., data = df_data, family = "binomial")
+logit_model_AIC <- MASS::stepAIC(logit_model, direction = "backward", trace = 0)
 
 
 #' box chart
@@ -149,8 +150,8 @@ get_logit_output <- function(input, type) {
     age = input$age
   )
   
-  # - get regression classification
-  logit_predict <- stats::predict(logit_model, newdata = new_data, type = "response")
+  # - get regression classification, use model after minimising AIC
+  logit_predict <- stats::predict(logit_model_AIC, newdata = new_data, type = "response")
   
   # - if retrieving probability of diabetes, return text
   if (type == "probability") {

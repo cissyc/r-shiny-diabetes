@@ -2,6 +2,7 @@ library(mlbench)
 library(ggplot2)
 library(stats)
 library(e1071)
+library(scatterplot3d)
 
 # - get data
 data(PimaIndiansDiabetes)
@@ -92,8 +93,28 @@ ggplot(data = dt_logit_predict,
   scale_size_manual(values = c(2, 2, 4 , 4)) +
   scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "chartreuse4", "red1"))
 
+# - select model using akaike information criteria
+logit_model_AIC <- MASS::stepAIC(logit_model, direction = "backward", trace = 0)
+# - only the intercept, glucose, mass, pedigree and age remain
 
-# - with PCA
+# - predict on new data
+logit_predict_AIC <- round(stats::predict(logit_model_AIC, newdata = dt_test[, 1:8], type = "response"), 0)
+logit_predict_AIC <- as.factor(ifelse(logit_predict_AIC == 0, "pred_neg", "pred_pos"))
+dt_logit_predict_AIC <- rbind(dt_train, data.frame(dt_test[, 1:8], diabetes = logit_predict_AIC))
+
+# - plot prediction post-AIC selection
+ggplot(data = dt_logit_predict_AIC, 
+       aes(x = glucose,
+           y = log(mass),
+           shape = diabetes,
+           size = diabetes,
+           colour = diabetes)) + 
+  geom_point() +
+  scale_shape_manual(values = c(1, 1, 17, 17)) +
+  scale_size_manual(values = c(2, 2, 4 , 4)) +
+  scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "chartreuse4", "red1"))
+
+# - feature extraction with PCA
 pca_logit_model <- stats::glm(dt_train$diabetes ~ ., data = data.frame(pr_train$x), family = "binomial")
 
 pr_test <- stats::predict(pr_train, newdata = dt_test[, 1:8])
