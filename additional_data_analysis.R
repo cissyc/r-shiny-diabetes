@@ -133,25 +133,29 @@ table(
 # apply lasso
 #---------------------------------------------------------------------------------------------------
 
+x <- model.matrix(diabetes ~ .*., df_train)
+y <- as.matrix(as.numeric(df_train$diabetes=="positive"))
 
-fit <- glmnet::glmnet(model.matrix(diabetes ~ .*., df_train), as.matrix(as.numeric(df_train$diabetes=="pos")), family = "binomial")
-plot(fit, xvar = "dev", label = TRUE)
+lasso_cv <- cv.glmnet(x, y, family='binomial', alpha=1, parallel=TRUE, standardize=TRUE, type.measure='auc')
+plot(lasso_cv)
 
-fit <- glmnet::glmnet(model.matrix(diabetes ~ ., df_train), as.matrix(as.numeric(df_train$diabetes=="pos")), family = "binomial")
+plot(lasso_cv$glmnet.fit, xvar="lambda", label=TRUE)
+lasso_cv$lambda.min
+lasso_cv$lambda.1se
+coef(cv.lasso, s=lasso_cv$lambda.min)
+coef(cv.lasso, s=lasso_cv$lambda.1se)
 
 
-# - plot this prediction on most features with lowest p values
-ggplot(data = df_logit_predict, 
-       aes(x = glucose,
-           y = log(mass),
-           shape = diabetes,
-           size = diabetes,
-           colour = diabetes)) + 
-  geom_point() +
-  scale_shape_manual(values = c(1, 1, 17, 17)) +
-  scale_size_manual(values = c(2, 2, 4 , 4)) +
-  scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "chartreuse4", "red1"))
+lasso_predict <- predict(lasso_cv, s=lasso_cv$lambda.1se, newx=model.matrix(diabetes ~ .*., df_test))
+# - convert lasso output to probability using logit link function
+lasso_predict <- exp(lasso_predict) / (exp(lasso_predict) + 1)
 
+sum((lasso_predict>0.5) != (df_test[,9] == "positive")) / length(lasso_predict)
+
+
+#---------------------------------------------------------------------------------------------------
+# AIC
+#---------------------------------------------------------------------------------------------------
 
 # - select model using akaike information criteria
 # - as a result only the intercept, glucose, mass, pedigree and age remain

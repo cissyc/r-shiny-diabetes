@@ -42,6 +42,10 @@ Model coefficients:
 tableOutput("model_coefficients")
 ```
 
+## Cross-Validation
+
+[10-fold cv error rate - or put this as part of lasso for determining lambda?]
+
 ## False Positives and False Negatives
 
 One of the metrics that need to be calibrated is the cut-off point, for it determines the classification decision boundary. In our logistic regression, the model outputs a probability of a patient having diabetes, but this probability must be assigned to either a positive or negative predicted value. A natural assumption would be to use 50% as a cut-off point, but it may not necessarily be the best to assign only data points with greater than 50% probability as "predicted positive", as the cost of incorrectly predicting someone as negative (diabetes patient is untreated) is not the same as the cost of incorrectly predicting someone as positive (healthy patient undergoes treatment).
