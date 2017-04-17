@@ -322,6 +322,7 @@ get_logit_diagnostics <- function(type) {
   } else if (type == "new_cutoff") {
     
     # - give a cost and find optimal cut-off point
+    rocr_predict <- ROCR::prediction(logit_predict, df_test[, 9]=="positive")
     cost_perf <- ROCR::performance(rocr_predict, measure = "cost", cost.fp = 1, cost.fn = 3)
     cutoff_optimal <- cost_perf@x.values[[1]][which.min(cost_perf@y.values[[1]])]
     
@@ -330,6 +331,7 @@ get_logit_diagnostics <- function(type) {
   } else if (type == "confusion_matrix_new_cutoff") {
     
     # - give a cost and find optimal cut-off point
+    rocr_predict <- ROCR::prediction(logit_predict, df_test[, 9]=="positive")
     cost_perf <- ROCR::performance(rocr_predict, measure = "cost", cost.fp = 1, cost.fn = 3)
     cutoff_optimal <- cost_perf@x.values[[1]][which.min(cost_perf@y.values[[1]])]
     
