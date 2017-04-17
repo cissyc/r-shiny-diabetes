@@ -3,6 +3,9 @@
 #' November 2016
 
 library(shiny)
+library(markdown)
+library(rmarkdown)
+library(knitr)
 
 # - source helper file that generate plots and outputs
 source("helper.R")
@@ -56,5 +59,25 @@ function(input, output) {
   output$logit_plot <- renderPlot({
     get_logit_output(input, type="plot")
   }, bg="transparent")
+  
+  output$confusion_matrix <- renderTable({
+    get_logit_diagnostics(type="confusion_matrix")
+  }, rownames = TRUE, bg="transparent")
+  
+  output$ROC <- renderPlot({
+    get_logit_diagnostics(type="ROC")
+  }, bg="transparent")
+  
+  output$new_cutoff <- renderText({
+    paste0("The optimal cut-off point is ", get_logit_diagnostics(type="new_cutoff"), "%.")
+  })
+  
+  output$confusion_matrix_new_cutoff <- renderTable({
+    get_logit_diagnostics(type="confusion_matrix_new_cutoff")
+  }, rownames = TRUE, bg="transparent")
+  
+  output$model_notes_markdown <- renderUI({
+    HTML(markdown::markdownToHTML(knitr::knit('model_notes.Rmd', quiet = TRUE), fragment.only=TRUE))
+  })
 }
 

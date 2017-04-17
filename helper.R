@@ -7,12 +7,17 @@ library(stats)
 library(ggplot2)
 library(shiny)
 library(shinydashboard)
-library(data.table)
+library(ROCR)
 
 # - get data
 data(PimaIndiansDiabetes)
-df_data <- data.table(PimaIndiansDiabetes)
+df_data <- data.frame(PimaIndiansDiabetes)
 levels(df_data$diabetes) <- c("negative", "positive")
+
+set.seed(3)
+sample_index <- sample(1:nrow(df_data), 0.1*nrow(df_data), FALSE)
+df_test <- df_data[sample_index, ]
+df_train <- df_data[-sample_index, ]
 
 # - description of each attribute
 data_attribute_desc <- list(
@@ -99,7 +104,7 @@ get_summary_output <- function(input, type, attribute) {
     new_data <- data.frame(new_values = t(new_data))
     new_data$variable <- rownames(new_data)
     
-    new_data_merged <- merge(df_melted, new_data, by = "variable") 
+    new_data_merged <- base::merge(df_melted, new_data, by = "variable") 
     
     # - plot density of existing data set in a facet wrap, overlay vline to mark new input data
 #    out_plot <- ggplot(data = new_data_merged,
@@ -115,7 +120,7 @@ get_summary_output <- function(input, type, attribute) {
 #        legend.background = element_blank())
     
     # - plot density of existing data set individually given attribute, overlay vline to mark new input data
-    out_plot <- ggplot(data = new_data_merged[variable == attribute, ],
+    out_plot <- ggplot(data = dplyr::filter(new_data_merged, variable == attribute),
                    aes(x = value,
                        group = diabetes,
                        colour = diabetes)) + 
@@ -188,6 +193,94 @@ get_logit_output <- function(input, type) {
     
     # - return plot to server
     return(out_plot)
+    
   }
-
+  
 }
+
+#' sdfdsfsdf
+#' 
+#' 
+get_logit_diagnostics <- function(type) {
+  
+  # - out-of-sample prediction
+  logit_model <- stats::glm(diabetes ~ ., data = df_train, family = "binomial")
+  logit_predict <- stats::predict(logit_model, newdata = df_test[, 1:8], type = "response")
+  logit_predict_factor <- as.factor(ifelse(round(logit_predict, 0) == 0, "predicted_negative", "predicted_positive"))
+  
+  if (type == "confusion_matrix") {
+    
+    confusion_matrix <- table(
+      model_prediction = logit_predict_factor,
+      actual_class = df_test$diabetes
+    )
+    
+    confusion_matrix <- as.data.frame.matrix(confusion_matrix)
+    
+    # - return confusion matrix to server
+    return(confusion_matrix)
+  
+  } else if (type == "ROC") {
+    
+    # - plot ROC curve for false positive rate vs true positive rate
+    rocr_predict <- ROCR::prediction(logit_predict, df_test[, 9]=="positive")
+    roc_perf <- ROCR::performance(rocr_predict, measure = "tpr", x.measure = "fpr")
+    roc_perf_data <- data.frame(x = roc_perf@x.values[[1]], y = roc_perf@y.values[[1]])
+    
+    auc_perf <- ROCR::performance(rocr_predict, measure = "auc")
+    auc <- auc_perf@y.values[[1]]
+    
+    out_plot <- ggplot(data = roc_perf_data,
+                       aes(x = x, y = y)) +
+      geom_line() +
+      geom_abline(slope = 1, intercept = 0) +
+      labs(title = "ROC Curve") +
+      xlab(label = "False Positive Rate") +
+      ylab(label = "True Positive Rate") +
+      geom_text(aes(x = 1, y = 0, hjust = 1, vjust = 0, label = paste(sep = "", "AUC = ", round(auc, 4))), 
+                colour="black", size = 4) +
+      coord_fixed()
+    
+    return(out_plot)
+    
+  } else if (type == "new_cutoff") {
+    
+    # - give a cost and find optimal cut-off point
+    cost_perf <- ROCR::performance(rocr_predict, measure = "cost", cost.fp = 1, cost.fn = 2)
+    cutoff_optimal <- rocr_predict@cutoffs[[1]][which.min(cost_perf@y.values[[1]])]
+    cutoff_optimal <- round(cutoff_optimal * 100, 2)
+    
+    return(cutoff_optimal)
+    
+  } else if (type == "confusion_matrix_new_cutoff") {
+    
+    # - give a cost and find optimal cut-off point
+    cost_perf <- ROCR::performance(rocr_predict, measure = "cost", cost.fp = 1, cost.fn = 2)
+    cutoff_optimal <- rocr_predict@cutoffs[[1]][which.min(cost_perf@y.values[[1]])]
+    
+    # - confusion matrix with new cut-off point
+    logit_predict_factor_new <- ifelse(logit_predict <= cutoff_optimal, "predicted_negative", "predicted_positive")
+    
+    confusion_matrix_new_cutoff <- table(
+      model_prediction = logit_predict_factor_new,
+      actual_class = df_test$diabetes
+    )
+    
+    confusion_matrix_new_cutoff <- as.data.frame.matrix(confusion_matrix_new_cutoff)
+    
+    return(confusion_matrix_new_cutoff)
+  
+  }
+  
+}
+
+
+
+
+
+
+
+
+
+
+

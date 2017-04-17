@@ -1,0 +1,54 @@
+---
+title: "Model Notes"
+author: "Cissy Chan"
+date: "17 April 2017"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Page under construction
+
+## Missing Data
+
+There are a few ways of managing missing data. Since all the variables are unimodel, a simple regression imputation would do the trick, although we could also explore clustering for multimodel data points.
+
+it actually didn't make sense for insulin as it creates negative values, so we keep this only for pressure and mass.
+
+[insert distribution graphs pre-and post-data cleaning]
+
+## Sensitivity and Specificity
+
+Next, we check for out-of-sample false positive and false negative rates.
+
+The confusion matrix shown below displays the predicted classification against the true classification.
+
+```{r confusion_matrix, echo=FALSE}
+tableOutput("confusion_matrix")
+```
+
+[add observations]
+
+Another measure of model suitability is the Receiver Operating Characteristics (ROC) curve. In our logistic regression, the model outputs a probability of diabetes, but this probability must be assigned to either a positive or negative predicted value. A natural assumption would be to use 50% as a cut-off point, but it may not necessarily be the best to assign only data point with greated than 50% probability as "predicted positive", as the cost of incorrectly predicting someone as negative (diabetes patient is untreated) is not the same as the cost of incorrectly predicting someone as positive (healthy patient undergoes treatment). The ROC curve below shows the relationship between the true positive rate and false positive rate of the model as the cut-off point moves from 0% to 100%. At a cut-off point of 0% (top left of the curve), everything above 0% is assigned positive, hence the true positive rate is 100% (all diabetic patients are captured), but the falses positive rate is also 100% (all healthy patients are classified as diabetic). At a cut-off point of 100% (bottom left of the curve), everything below 100% is assigned negative, hence the both the true and false positive rates are 0%.
+
+
+```{r ROC, echo=FALSE}
+plotOutput("ROC")
+```
+
+We seek an optimal point such that the costs are aligned
+
+In medicine, false positive has a greater cost to a false negative, so we assign cost, and re-allocate.
+
+```{r new_cutoff, echo=FALSE}
+textOutput("new_cutoff")
+```
+
+New confusion matrix below
+
+```{r confusion_matrix_new_cutoff, echo=FALSE}
+tableOutput("confusion_matrix_new_cutoff")
+```

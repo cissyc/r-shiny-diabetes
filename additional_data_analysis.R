@@ -5,6 +5,9 @@ library(stats)          # - for principal component analysis and glm
 library(MASS)           # - for akaike information criterion
 library(scatterplot3d)  # - for 3d scatter plot
 library(boot)           # - for cross validation
+library(pROC)           # - for ROC and AUC
+library(ROCR)           # - for ROC and AUC
+library(glmnet)         # - for lasso
 
 # - get data
 data(PimaIndiansDiabetes)
@@ -16,11 +19,13 @@ dim(df_data)
 # - split into training set and test set
 set.seed(3)
 sample_index <- sample(1:nrow(df_data), 0.1*nrow(df_data), FALSE)
-dt_test <- df_data[sample_index, ]
-dt_train <- df_data[-sample_index, ]
+df_test <- df_data[sample_index, ]
+df_train <- df_data[-sample_index, ]
+
+df_train_old <- df_train
 
 # - plot each feature vector
-df_melted <- reshape2::melt(df_data, id.vars = "diabetes")
+df_melted <- reshape2::melt(df_train, id.vars = "diabetes")
 
 ggplot(data = df_melted,
        aes(x = value,
@@ -30,64 +35,112 @@ ggplot(data = df_melted,
   facet_wrap(~ variable, scales  =  "free") +
   scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "black"))
 
-with(dt_train, plot(x = triceps, y = log(insulin), col = diabetes))
-with(dt_train, plot(x = glucose, y = log(mass), col = diabetes))
 
 #---------------------------------------------------------------------------------------------------
-# naive bayes
+# missing data imputation
 #---------------------------------------------------------------------------------------------------
 
-nb_model <- e1071::naiveBayes(diabetes ~ .,data = dt_train)
+# - variables with missing data: pressure, triceps, insulin, mass
+# - variables without missing data: pregnant, glucose, pedigree, age
 
-# - back-test with training data
-nb_predict_train <- stats::predict(nb_model, dt_train[, 1:8])
+pressure_model <- stats::glm(pressure ~ pregnant + glucose + pedigree + age, data = df_train[df_train$pressure != 0, ])
+pressure_predict <- stats::predict(pressure_model, newdata = df_train[, c("pregnant", "glucose", "pedigree", "age")], type = "response")
 
-# - confusion matrix to get true and false negatives
-table(
-  model_prediction  =  nb_predict_train,
-  actual_class  =  dt_train$diabetes
-)
+triceps_model <- stats::glm(triceps ~ pregnant + glucose + pedigree + age, data = df_train[df_train$triceps != 0, ])
+triceps_predict <- stats::predict(triceps_model, newdata = df_train[, c("pregnant", "glucose", "pedigree", "age")], type = "response")
 
-# - now try test data
-nb_predict_test <- stats::predict(nb_model, dt_test[, 1:8])
-table(
-  model_prediction  =  nb_predict_test,
-  actual_class  =  dt_test$diabetes
-)
+insulin_model <- stats::glm(insulin ~ pregnant + glucose + pedigree + age, data = df_train[df_train$insulin != 0, ])
+insulin_predict <- stats::predict(insulin_model, newdata = df_train[, c("pregnant", "glucose", "pedigree", "age")], type = "response")
 
+mass_model <- stats::glm(mass ~ pregnant + glucose + pedigree + age, data = df_train[df_train$mass != 0, ])
+mass_predict <- stats::predict(mass_model, newdata = df_train[, c("pregnant", "glucose", "pedigree", "age")], type = "response")
 
-#---------------------------------------------------------------------------------------------------
-# principal component analysis
-#---------------------------------------------------------------------------------------------------
+df_train_new <- cbind(df_train, pressure_predict, triceps_predict, insulin_predict, mass_predict) %>%
+  dplyr::mutate(
+    pressure = ifelse(pressure == 0, pressure_predict, pressure),
+    triceps = ifelse(triceps == 0, triceps_predict, triceps),
+    #insulin = ifelse(insulin == 0, insulin_predict, insulin),
+    mass = ifelse(mass == 0, mass_predict, mass)
+  ) %>%
+  dplyr::select(
+    -pressure_predict,
+    -triceps_predict,
+    -insulin_predict,
+    -mass_predict
+  )
 
-pr_train <- stats::prcomp(x = dt_train[, 1:8], center = TRUE, scale = TRUE)
+# - triceps and insulin bad
+df_melted_new <- reshape2::melt(df_train_new, id.vars = "diabetes")
 
-# - first 3 PCs explain 61% of variance
-plot(pr_train, type = "l")
-summary(pr_train)
+ggplot(data = df_melted_new,
+       aes(x = value,
+           group = diabetes,
+           colour = diabetes)) + 
+  geom_density() + 
+  facet_wrap(~ variable, scales  =  "free") +
+  scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "black"))
 
-plot(x = pr_train$x[, 1], y = pr_train$x[, 2], col = dt_train$diabetes)
-
-scatterplot3d(x = pr_train$x[, 1], y = pr_train$x[, 2], z = pr_train$x[, 3], 
-              color = c("chartreuse4", "red")[dt_train$diabetes])
 
 #---------------------------------------------------------------------------------------------------
 # binomial logistic regression
 #---------------------------------------------------------------------------------------------------
 
-logit_model <- stats::glm(diabetes ~ ., data = dt_train, family = "binomial")
+df_train <- df_train_old
+df_train <- df_train_new
+
+logit_model <- stats::glm(diabetes ~ .*., data = df_train, family = "binomial")
 
 # - check leave-one-out CV
 # - 15.9% error rate
-boot::cv.glm(dt_train, logit_model)$delta
+boot::cv.glm(df_train, logit_model)$delta
 
 # - predict on new data
-logit_predict <- stats::predict(logit_model, newdata = dt_test[, 1:8], type = "response")
-logit_predict <- as.factor(ifelse(round(logit_predict, 0) == 0, "pred_neg", "pred_pos"))
-dt_logit_predict <- rbind(dt_train, data.frame(dt_test[, 1:8], diabetes = logit_predict))
+logit_predict <- stats::predict(logit_model, newdata = df_test[, 1:8], type = "response")
+logit_predict_factor <- as.factor(ifelse(round(logit_predict, 0) == 0, "pred_neg", "pred_pos"))
+
+# - confusion matrix
+table(
+  model_prediction = logit_predict_factor,
+  actual_class = df_test$diabetes
+)
+
+library(ROCR)
+# - plot ROC curve for false positive rate vs true positive rate
+rocr_predict <- ROCR::prediction(logit_predict, df_test[, 9]=="positive")
+roc_perf <- ROCR::performance(rocr_predict, measure = "tpr", x.measure = "fpr")
+plot(roc_perf, main = "ROC Curve")
+abline(a = 0, b = 1)
+
+# - area under curve
+auc_perf <- ROCR::performance(rocr_predict, measure = "auc")
+auc_perf@y.values
+
+# - give a cost and find optimal cut-off point
+cost_perf <- ROCR::performance(rocr_predict, measure = "cost", cost.fp = 1, cost.fn = 2)
+cutoff_optimal <- pred@cutoffs[[1]][which.min(cost_perf@y.values[[1]])]
+
+# - confusion matrix with new cut-off point
+logit_predict_factor_new <- ifelse(logit_predict <= cutoff_optimal, "pred_neg", "pred_pos")
+
+table(
+  model_prediction = logit_predict_new,
+  actual_class = df_test$diabetes
+)
+
+
+#---------------------------------------------------------------------------------------------------
+# apply lasso
+#---------------------------------------------------------------------------------------------------
+
+
+fit <- glmnet::glmnet(model.matrix(diabetes ~ .*., df_train), as.matrix(as.numeric(df_train$diabetes=="pos")), family = "binomial")
+plot(fit, xvar = "dev", label = TRUE)
+
+fit <- glmnet::glmnet(model.matrix(diabetes ~ ., df_train), as.matrix(as.numeric(df_train$diabetes=="pos")), family = "binomial")
+
 
 # - plot this prediction on most features with lowest p values
-ggplot(data = dt_logit_predict, 
+ggplot(data = df_logit_predict, 
        aes(x = glucose,
            y = log(mass),
            shape = diabetes,
@@ -105,36 +158,24 @@ logit_model_aic <- MASS::stepAIC(logit_model, direction = "backward", trace = 0)
 
 # - check leave-one-out CV
 # - 15.7% error rate
-boot::cv.glm(dt_train, logit_model_aic)$delta
+boot::cv.glm(df_train, logit_model_aic)$delta
 
 # - predict on new data
-logit_predict_aic <- round(stats::predict(logit_model_aic, newdata = dt_test[, 1:8], type = "response"), 0)
+logit_predict_aic <- round(stats::predict(logit_model_aic, newdata = df_test[, 1:8], type = "response"), 0)
 logit_predict_aic <- as.factor(ifelse(logit_predict_aic == 0, "pred_neg", "pred_pos"))
 
 
-# - feature extraction with PCA
-# - set up data first, with PC instead of original features
-dt_train_pca <- data.frame(
-  diabetes = dt_train$diabetes,
-  pr_train$x
+
+# - other stuff
+
+with(df_train, plot(x = triceps, y = log(insulin), col = diabetes))
+with(df_train, plot(x = glucose, y = log(mass), col = diabetes))
+
+
+table(
+  model_prediction  =  df_data,
+  actual_class  =  df_test$diabetes
 )
-
-logit_model_pca <- stats::glm(diabetes ~ ., data = dt_train_pca, family = "binomial")
-
-# - check leave-one-out CV
-# - 15.9% error rate
-boot::cv.glm(dt_train_pca, logit_model_pca)$delta
-
-# - predict on new data
-# - generate principal components for test set
-pr_test <- stats::predict(pr_train, newdata = dt_test[, 1:8])
-logit_predict_pca <- round(stats::predict(logit_model_pca, newdata = data.frame(pr_test), type = "response"), 0)
-logit_predict_pca <- as.factor(ifelse(logit_predict_pca == 0, "pred_neg", "pred_pos"))
-
-
-
-
-
 
 
 

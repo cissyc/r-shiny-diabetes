@@ -47,7 +47,7 @@ dashboardPage(
       ),
       menuItem("Comparison with population", tabName = "comparison", icon = icon("bar-chart")),
       menuItem("Diabetes likelihood", tabName = "diabetes", icon = icon("heartbeat")),
-      menuItem("Model Info", tabName = "model", icon = icon("line-chart"))
+      menuItem("Model Diagnostics", tabName = "model", icon = icon("line-chart"))
     )
   ),
   
@@ -145,8 +145,8 @@ dashboardPage(
         # - third tab: model statistics
         tabItem(tabName = "model",
                 fluidPage(
-                  br(),
-                  "On its way: model stats, ROC curve, accuracy, error rates")
+                  uiOutput('model_notes_markdown')
+                )
         )
       )
     )
