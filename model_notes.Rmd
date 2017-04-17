@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Page under construction
 
-This page details the steps taken to prepare the data set for modelling, as well as assessments of model suitability.
+This page outlines the steps taken to prepare the data set for modelling, as well as assessments of model suitability.
 
 ## Missing Data
 
