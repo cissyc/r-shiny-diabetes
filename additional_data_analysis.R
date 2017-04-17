@@ -8,6 +8,7 @@ library(boot)           # - for cross validation
 library(pROC)           # - for ROC and AUC
 library(ROCR)           # - for ROC and AUC
 library(glmnet)         # - for lasso
+library(dplyr)          # - data manipulation 
 
 # - get data
 data(PimaIndiansDiabetes)

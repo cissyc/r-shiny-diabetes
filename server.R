@@ -60,6 +60,16 @@ function(input, output) {
     get_logit_output(input, type="plot")
   }, bg="transparent")
   
+  # - model diagnostics outputs
+  output$model_coefficients <- renderTable({
+    get_logit_output(input, type="model_coefficients")
+  }, digits=4, bg="transparent")
+  
+  
+  output$imputation_comparison <- renderPlot({
+    get_logit_diagnostics(type="imputation_comparison")
+  }, bg="transparent")
+  
   output$confusion_matrix <- renderTable({
     get_logit_diagnostics(type="confusion_matrix")
   }, rownames = TRUE, bg="transparent")
@@ -69,7 +79,7 @@ function(input, output) {
   }, bg="transparent")
   
   output$new_cutoff <- renderText({
-    paste0("The optimal cut-off point is ", get_logit_diagnostics(type="new_cutoff"), "%.")
+    paste0("The optimal cut-off point given the relative costs is ", round(get_logit_diagnostics(type="new_cutoff") * 100, 2), "%.")
   })
   
   output$confusion_matrix_new_cutoff <- renderTable({

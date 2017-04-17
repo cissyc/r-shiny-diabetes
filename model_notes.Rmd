@@ -12,34 +12,55 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Page under construction
 
+This page details the steps taken to prepare the data set for modelling, as well as assessments of model suitability.
+
 ## Missing Data
 
-There are a few ways of managing missing data. Since all the variables are unimodel, a simple regression imputation would do the trick, although we could also explore clustering for multimodel data points.
+This data set contains some zero-values in fields where there shouldn't be zeroes, namely blood pressure, triceps skin fold thickness, and BMI. That signifies missing data.
 
-it actually didn't make sense for insulin as it creates negative values, so we keep this only for pressure and mass.
+There are a few ways of managing missing data. Since all variables in this data set are unimodal, a simple regression imputation would do the trick, although we could also explore clustering if the data were multimodal.
 
-[insert distribution graphs pre-and post-data cleaning]
+The graphs below show the distribution of these three variables pre- and post- imputation.
 
-## Sensitivity and Specificity
+```{r imputation_comparison, echo=FALSE}
+plotOutput("imputation_comparison")
+```
 
-Next, we check for out-of-sample false positive and false negative rates.
+The distribution for pressure and mass appear preserved, but for triceps it is clear that the variance isn't.
 
-The confusion matrix shown below displays the predicted classification against the true classification.
+[try a different method of imputation?]
+
+## Model Selection
+
+Trained model on logistic regression on all variables + interaction terms, then performed sequential backwards selection while minimising the Akaike information criterion (AIC).
+
+[+ lasso, data correlation]
+
+Model coefficients:
+
+```{r model_coefficients, echo=FALSE}
+tableOutput("model_coefficients")
+```
+
+## False Positives and False Negatives
+
+One of the metrics that need to be calibrated is the cut-off point, for it determines the classification decision boundary. In our logistic regression, the model outputs a probability of a patient having diabetes, but this probability must be assigned to either a positive or negative predicted value. A natural assumption would be to use 50% as a cut-off point, but it may not necessarily be the best to assign only data points with greater than 50% probability as "predicted positive", as the cost of incorrectly predicting someone as negative (diabetes patient is untreated) is not the same as the cost of incorrectly predicting someone as positive (healthy patient undergoes treatment).
+
+As a starting point, we check for out-of-sample true and false positive rates. The confusion matrix shown below displays the predicted classification against the true classification, where the model was trained on a subset containing 90% of the data, and then tested on the remaining 10%.
 
 ```{r confusion_matrix, echo=FALSE}
 tableOutput("confusion_matrix")
 ```
 
-[add observations]
+Perhaps a different cut-off point would yield fewer false negatives at the expense of more false positives. [add observations]
 
-Another measure of model suitability is the Receiver Operating Characteristics (ROC) curve. In our logistic regression, the model outputs a probability of diabetes, but this probability must be assigned to either a positive or negative predicted value. A natural assumption would be to use 50% as a cut-off point, but it may not necessarily be the best to assign only data point with greated than 50% probability as "predicted positive", as the cost of incorrectly predicting someone as negative (diabetes patient is untreated) is not the same as the cost of incorrectly predicting someone as positive (healthy patient undergoes treatment). The ROC curve below shows the relationship between the true positive rate and false positive rate of the model as the cut-off point moves from 0% to 100%. At a cut-off point of 0% (top left of the curve), everything above 0% is assigned positive, hence the true positive rate is 100% (all diabetic patients are captured), but the falses positive rate is also 100% (all healthy patients are classified as diabetic). At a cut-off point of 100% (bottom left of the curve), everything below 100% is assigned negative, hence the both the true and false positive rates are 0%.
-
+Another measure of model suitability is the Receiver Operating Characteristics (ROC) curve. The ROC curve below shows the relationship between the true positive rate and false positive rate of the model as the cut-off point moves from 0% to 100%. At a cut-off point of 0% (top left of the curve), everything above 0% is assigned positive, hence the true positive rate is 100% (all diabetic patients are captured), but the falses positive rate is also 100% (all healthy patients are classified as diabetic). At a cut-off point of 100% (bottom left of the curve), everything below 100% is assigned negative, hence the both the true and false positive rates are 0%.
 
 ```{r ROC, echo=FALSE}
 plotOutput("ROC")
 ```
 
-We seek an optimal point such that the costs are aligned
+We seek an optimal point such that the total costs are minimised.
 
 In medicine, false positive has a greater cost to a false negative, so we assign cost, and re-allocate.
 
@@ -47,8 +68,13 @@ In medicine, false positive has a greater cost to a false negative, so we assign
 textOutput("new_cutoff")
 ```
 
-New confusion matrix below
+The confusion matrix generated from the new cut-off point is shown below.
 
 ```{r confusion_matrix_new_cutoff, echo=FALSE}
 tableOutput("confusion_matrix_new_cutoff")
 ```
+
+
+
+
+
