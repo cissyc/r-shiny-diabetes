@@ -4,6 +4,7 @@
 
 library(shiny)
 library(shinydashboard)
+library(shinyjs)
 
 # - source the helper file that generates plots and outputs
 source("helper.R")
@@ -24,12 +25,12 @@ data_desc <-  c("Number of times pregnant",
 dashboardPage(
   
   dashboardHeader(
-    title = "Pima Indians Diabetes Analysis",
-    titleWidth = 320
+    title = "Diabetes Regression",
+    titleWidth = 250
   ),
   
   dashboardSidebar(
-    width = 320,
+    width = 250,
     
     # - side bar menu with input and output tabs
     sidebarMenu(
@@ -67,7 +68,13 @@ dashboardPage(
         
         # - first tab: comparison of input data with existing data to show where it stands
         tabItem(tabName = "comparison",
+                
+                #includeCSS("styles.css"),
+                
                 fluidPage(
+                  
+                  #tags$div(class = "content-wdrapper", style = "min-height: 4000px;"),
+                  
                   br(),
                   # - description for this tab
                   paste0("The charts below show the probability density distribution of ",
@@ -95,6 +102,7 @@ dashboardPage(
                     get_summary_plot_box(attribute = data_headers[7]),
                     get_summary_plot_box(attribute = data_headers[8])
                   )
+                  
                 )
         ), 
         
@@ -141,6 +149,8 @@ dashboardPage(
                                        selected="mass")
                     )
                   )
+                  
+                  
                 )),
         # - third tab: model statistics
         tabItem(tabName = "model",

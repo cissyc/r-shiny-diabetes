@@ -67,23 +67,23 @@ function(input, output) {
   
   
   output$imputation_comparison <- renderPlot({
-    get_logit_diagnostics(type="imputation_comparison")
+    logit_diagnostics$imputation_comparison
   }, bg="transparent")
   
   output$confusion_matrix <- renderTable({
-    get_logit_diagnostics(type="confusion_matrix")
+    logit_diagnostics$confusion_matrix
   }, rownames = TRUE, bg="transparent")
   
   output$ROC <- renderPlot({
-    get_logit_diagnostics(type="ROC")
+    logit_diagnostics$ROC
   }, bg="transparent")
   
   output$new_cutoff <- renderText({
-    paste0("The optimal cut-off point given the relative costs is ", round(get_logit_diagnostics(type="new_cutoff") * 100, 2), "%.")
+    paste0("The optimal cut-off point given the relative costs is ", round(logit_diagnostics$new_cutoff * 100, 2), "%.")
   })
   
   output$confusion_matrix_new_cutoff <- renderTable({
-    get_logit_diagnostics(type="confusion_matrix_new_cutoff")
+    logit_diagnostics$confusion_matrix_new_cutoff
   }, rownames = TRUE, bg="transparent")
   
   output$model_notes_markdown <- renderUI({

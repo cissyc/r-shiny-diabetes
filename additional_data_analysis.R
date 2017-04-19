@@ -136,7 +136,7 @@ table(
 x <- model.matrix(diabetes ~ .*., df_train)
 y <- as.matrix(as.numeric(df_train$diabetes=="positive"))
 
-lasso_cv <- cv.glmnet(x, y, family='binomial', alpha=1, parallel=TRUE, standardize=TRUE, type.measure='auc')
+lasso_cv <- cv.glmnet(x, y, family='binomial', alpha=1, standardize=TRUE, type.measure='auc')
 plot(lasso_cv)
 
 plot(lasso_cv$glmnet.fit, xvar="lambda", label=TRUE)

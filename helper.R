@@ -72,10 +72,6 @@ df_data <- cbind(df_data, pressure_predict, triceps_predict, mass_predict) %>%
 df_melted_old <- reshape2::melt(df_data_old, id.vars = "diabetes")
 df_melted <- reshape2::melt(df_data, id.vars = "diabetes")
 
-# - get logit coefficients; perform model selection by minimising the akaike information criteria (AIC)
-logit_model <- stats::glm(diabetes ~ .*., data = df_data, family = "binomial")
-logit_model_AIC <- MASS::stepAIC(logit_model, direction = "backward", trace = 0)
-
 
 #' box chart
 #' 
@@ -134,23 +130,23 @@ get_summary_output <- function(input, type, attribute) {
     new_data_merged <- base::merge(df_melted, new_data, by = "variable") 
     
     # - plot density of existing data set in a facet wrap, overlay vline to mark new input data
-#    out_plot <- ggplot(data = new_data_merged,
-#                   aes(x = value,
-#                       group = diabetes,
-#                       colour = diabetes)) + 
-#      geom_density() + 
-#      facet_wrap(~ variable, scales = "free") +
-#      geom_vline(aes(xintercept = new_values)) +
-#      scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "black")) +
-#      theme(
-#        plot.background = element_blank(),
-#        legend.background = element_blank())
+    #    out_plot <- ggplot(data = new_data_merged,
+    #                   aes(x = value,
+    #                       group = diabetes,
+    #                       colour = diabetes)) + 
+    #      geom_density() + 
+    #      facet_wrap(~ variable, scales = "free") +
+    #      geom_vline(aes(xintercept = new_values)) +
+    #      scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "black")) +
+    #      theme(
+    #        plot.background = element_blank(),
+    #        legend.background = element_blank())
     
     # - plot density of existing data set individually given attribute, overlay vline to mark new input data
     out_plot <- ggplot(data = dplyr::filter(new_data_merged, variable == attribute),
-                   aes(x = value,
-                       group = diabetes,
-                       colour = diabetes)) + 
+                       aes(x = value,
+                           group = diabetes,
+                           colour = diabetes)) + 
       geom_density() +
       geom_vline(aes(xintercept = new_values)) +
       xlab(label = data_attribute_unit[[attribute]]) +
@@ -169,6 +165,10 @@ get_summary_output <- function(input, type, attribute) {
 #' 
 #' 
 get_logit_output <- function(input, type) {
+  
+  # - get logit coefficients; perform model selection by minimising the akaike information criteria (AIC)
+  logit_model <- stats::glm(diabetes ~ .*., data = df_data, family = "binomial")
+  logit_model_AIC <- MASS::stepAIC(logit_model, direction = "backward", trace = 0)
   
   # - set up new input data
   new_data <- data.frame(
@@ -197,7 +197,7 @@ get_logit_output <- function(input, type) {
   } else if (type == "plot") {
     
     # - get cut-off point
-    cutoff_optimal <- get_logit_diagnostics("new_cutoff")
+    cutoff_optimal <- logit_diagnostics$new_cutoff
     
     # - else if want to retrieve plot, return scatter plot given two input variables to compare
     logit_predict_out <- as.factor(ifelse(logit_predict <- cutoff_optimal, "predicted_negative", "predicted_positive"))
@@ -205,11 +205,11 @@ get_logit_output <- function(input, type) {
     
     # - plot data and prediction
     out_plot <- ggplot(data = dt_logit_predict, 
-                   aes(x = get(input$x_var),
-                       y = get(input$y_var),
-                       shape = diabetes,
-                       size = diabetes,
-                       colour = diabetes)) +
+                       aes(x = get(input$x_var),
+                           y = get(input$y_var),
+                           shape = diabetes,
+                           size = diabetes,
+                           colour = diabetes)) +
       xlab(label = input$x_var) +
       ylab(label = input$y_var) + 
       geom_point() +
@@ -236,121 +236,94 @@ get_logit_output <- function(input, type) {
   
 }
 
-#' sdfdsfsdf
-#' 
-#' 
-get_logit_diagnostics <- function(type) {
-  
-  # - out-of-sample prediction
-  logit_model <- stats::glm(diabetes ~ .*., data = df_train, family = "binomial")
-  logit_model_AIC <- MASS::stepAIC(logit_model, direction = "backward", trace = 0)
-  logit_predict <- stats::predict(logit_model_AIC, newdata = df_test[, 1:8], type = "response")
-  logit_predict_factor <- as.factor(ifelse(round(logit_predict, 0) == 0, "predicted_negative", "predicted_positive"))
-  
-  if (type == "imputation_comparison") {
-    
-    df_melted_old <- df_melted_old %>%
-      dplyr::filter(
-        variable %in% c("pressure", "triceps", "mass")
-      ) %>%
-      dplyr::mutate(
-        variable = paste0(variable, "_old")
-      )
-    
-    df_melted <- df_melted %>%
-      dplyr::filter(
-        variable %in% c("pressure", "triceps", "mass")
-      ) %>%
-      dplyr::mutate(
-        variable = paste0(variable, "_new")
-      )
-    
-    df_melted_comparison <- rbind(df_melted_old, df_melted)
-    order <- unique(df_melted_comparison$variable)
-    df_melted_comparison$variable <- factor(df_melted_comparison$variable, levels=order)
-    
-    out_plot <- ggplot(data = df_melted_comparison,
-           aes(x = value,
-               group = diabetes,
-               colour = diabetes)) + 
-      geom_density() + 
-      facet_wrap(~ variable, scales = "free", nrow = 2) +
-      scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "black")) +
-      theme(
-        plot.background = element_blank(),
-        legend.background = element_blank())
-    
-    return(out_plot)
-    
-  } else if (type == "confusion_matrix") {
-    
-    confusion_matrix <- table(
-      model_prediction = logit_predict_factor,
-      actual_class = df_test$diabetes
-    )
-    
-    confusion_matrix <- as.data.frame.matrix(confusion_matrix)
-    
-    # - return confusion matrix to server
-    return(confusion_matrix)
-  
-  } else if (type == "ROC") {
-    
-    # - plot ROC curve for false positive rate vs true positive rate
-    rocr_predict <- ROCR::prediction(logit_predict, df_test[, 9]=="positive")
-    roc_perf <- ROCR::performance(rocr_predict, measure = "tpr", x.measure = "fpr")
-    roc_perf_data <- data.frame(x = roc_perf@x.values[[1]], y = roc_perf@y.values[[1]])
-    
-    auc_perf <- ROCR::performance(rocr_predict, measure = "auc")
-    auc <- auc_perf@y.values[[1]]
-    
-    out_plot <- ggplot(data = roc_perf_data, aes(x = x, y = y)) +
-      geom_line() +
-      geom_abline(slope = 1, intercept = 0) +
-      labs(title = "ROC Curve") +
-      xlab(label = "False Positive Rate") +
-      ylab(label = "True Positive Rate") +
-      geom_text(aes(x = 1, y = 0, hjust = 1, vjust = 0, label = paste(sep = "", "AUC = ", round(auc, 4))), 
-                colour="black", size = 4) +
-      coord_fixed() +
-      theme(
-        plot.background = element_blank(),
-        legend.background = element_blank())
-    
-    return(out_plot)
-    
-  } else if (type == "new_cutoff") {
-    
-    # - give a cost and find optimal cut-off point
-    rocr_predict <- ROCR::prediction(logit_predict, df_test[, 9]=="positive")
-    cost_perf <- ROCR::performance(rocr_predict, measure = "cost", cost.fp = 1, cost.fn = 3)
-    cutoff_optimal <- cost_perf@x.values[[1]][which.min(cost_perf@y.values[[1]])]
-    
-    return(cutoff_optimal)
-    
-  } else if (type == "confusion_matrix_new_cutoff") {
-    
-    # - give a cost and find optimal cut-off point
-    rocr_predict <- ROCR::prediction(logit_predict, df_test[, 9]=="positive")
-    cost_perf <- ROCR::performance(rocr_predict, measure = "cost", cost.fp = 1, cost.fn = 3)
-    cutoff_optimal <- cost_perf@x.values[[1]][which.min(cost_perf@y.values[[1]])]
-    
-    # - confusion matrix with new cut-off point
-    logit_predict_factor_new <- ifelse(logit_predict <= cutoff_optimal, "predicted_negative", "predicted_positive")
-    
-    confusion_matrix_new_cutoff <- table(
-      model_prediction = logit_predict_factor_new,
-      actual_class = df_test$diabetes
-    )
-    
-    confusion_matrix_new_cutoff <- as.data.frame.matrix(confusion_matrix_new_cutoff)
-    confusion_matrix_new_cutoff
-    
-    return(confusion_matrix_new_cutoff)
-  
-  }
-  
-}
+# - initialise model diagnostics list
+logit_diagnostics <- list()
+
+# - out-of-sample prediction
+logit_model_train <- stats::glm(diabetes ~ .*., data = df_train, family = "binomial")
+logit_model_train_AIC <- MASS::stepAIC(logit_model_train, direction = "backward", trace = 0)
+logit_predict_train <- stats::predict(logit_model_train_AIC, newdata = df_test[, 1:8], type = "response")
+logit_predict_train_factor <- as.factor(ifelse(round(logit_predict_train, 0) == 0, "predicted_negative", "predicted_positive"))
+
+
+df_melted_old <- df_melted_old %>%
+  dplyr::filter(
+    variable %in% c("pressure", "triceps", "mass")
+  ) %>%
+  dplyr::mutate(
+    variable = paste0(variable, "_old")
+  )
+
+df_melted_new <- df_melted %>%
+  dplyr::filter(
+    variable %in% c("pressure", "triceps", "mass")
+  ) %>%
+  dplyr::mutate(
+    variable = paste0(variable, "_new")
+  )
+
+df_melted_comparison <- rbind(df_melted_old, df_melted_new)
+order <- unique(df_melted_comparison$variable)
+df_melted_comparison$variable <- factor(df_melted_comparison$variable, levels=order)
+
+# - save
+logit_diagnostics$imputation_comparison <- ggplot(
+  data = df_melted_comparison,
+  aes(x = value,
+      group = diabetes,
+      colour = diabetes)) + 
+  geom_density() + 
+  facet_wrap(~ variable, scales = "free", nrow = 2) +
+  scale_colour_manual(name = "diabetes",values = c("chartreuse3", "red", "black")) +
+  theme(
+    plot.background = element_blank(),
+    legend.background = element_blank())
+
+# - save
+logit_diagnostics$confusion_matrix <- as.data.frame.matrix(table(
+  model_prediction = logit_predict_train_factor,
+  actual_class = df_test$diabetes
+))
+
+# - plot ROC curve for false positive rate vs true positive rate
+rocr_predict <- ROCR::prediction(logit_predict_train, df_test[, 9]=="positive")
+roc_perf <- ROCR::performance(rocr_predict, measure = "tpr", x.measure = "fpr")
+roc_perf_data <- data.frame(x = roc_perf@x.values[[1]], y = roc_perf@y.values[[1]])
+
+auc_perf <- ROCR::performance(rocr_predict, measure = "auc")
+auc <- auc_perf@y.values[[1]]
+
+# - save
+logit_diagnostics$ROC <- ggplot(
+  data = roc_perf_data, aes(x = x, y = y)) +
+  geom_line() +
+  geom_abline(slope = 1, intercept = 0) +
+  labs(title = "ROC Curve") +
+  xlab(label = "False Positive Rate") +
+  ylab(label = "True Positive Rate") +
+  geom_text(aes(x = 1, y = 0, hjust = 1, vjust = 0, label = paste(sep = "", "AUC = ", round(auc, 4))), 
+            colour="black", size = 4) +
+  coord_fixed() +
+  theme(
+    plot.background = element_blank(),
+    legend.background = element_blank())
+
+# - give a cost and find optimal cut-off point
+cost_perf <- ROCR::performance(rocr_predict, measure = "cost", cost.fp = 1, cost.fn = 3)
+cutoff_optimal <- cost_perf@x.values[[1]][which.min(cost_perf@y.values[[1]])]
+
+# - save
+logit_diagnostics$new_cutoff <- cutoff_optimal
+
+# - confusion matrix with new cut-off point
+logit_predict_train_factor_new <- ifelse(logit_predict_train <= cutoff_optimal, "predicted_negative", "predicted_positive")
+
+# - save
+logit_diagnostics$confusion_matrix_new_cutoff <- as.data.frame.matrix(table(
+  model_prediction = logit_predict_train_factor_new,
+  actual_class = df_test$diabetes
+))
+
 
 
 

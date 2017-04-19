@@ -36,10 +36,8 @@ Trained model on logistic regression on all variables + interaction terms, then 
 
 [+ lasso, data correlation]
 
-Model coefficients:
-
 ```{r model_coefficients, echo=FALSE}
-tableOutput("model_coefficients")
+#tableOutput("model_coefficients")
 ```
 
 ## Cross-Validation
