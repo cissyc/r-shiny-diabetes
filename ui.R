@@ -59,7 +59,7 @@ dashboardPage(
       
       
       box(width = 12, solidHeader = TRUE,
-          paste0("This app explores the Pima Indians Diabetes data. ",
+          paste0("This app explores the Pima Indians Diabetes data set. ",
                  "Enter inputs in the \"Input data\" tab on the sidebar to the left to compare their ",
                  "relation to the existing data set, and their corresponding probability of a positive ",
                  "diabetes result, based on regression on the existing data.")),
@@ -69,9 +69,10 @@ dashboardPage(
         # - first tab: comparison of input data with existing data to show where it stands
         tabItem(tabName = "comparison",
                 
-                #includeCSS("styles.css"),
                 
                 fluidPage(
+                  
+                  includeCSS("styles.css"),
                   
                   #tags$div(class = "content-wdrapper", style = "min-height: 4000px;"),
                   
